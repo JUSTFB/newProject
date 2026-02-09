@@ -1,0 +1,8 @@
+node_modules/
+ai_env/
+__pycache__/
+*.log
+.env
+backend/.env
+backend/uploads/
+*.mp4

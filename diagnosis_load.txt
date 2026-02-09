@@ -1,0 +1,5 @@
+Created dummy wav at d:\newProject\test_audio.wav
+Attempt 1: torchaudio.load() default
+Failed Attempt 1: TorchCodec is required for load_with_torchcodec. Please install torchcodec to use this function.
+Attempt 2: torchaudio.load(backend='soundfile')
+Failed Attempt 2: TorchCodec is required for load_with_torchcodec. Please install torchcodec to use this function.

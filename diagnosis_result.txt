@@ -1,0 +1,6 @@
+Python: 3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]
+Torch: 2.10.0+cpu
+Torchaudio: 2.10.0+cpu
+Soundfile: 0.13.1
+torchaudio.list_audio_backends() does not exist
+torchaudio.get_audio_backend() does not exist

@@ -1,0 +1,4 @@
+Applying monkey-patch...
+Created dummy wav at d:\newProject\test_audio_patch.wav
+Attempt 1: torchaudio.load() with patch
+Success! Shape: torch.Size([1, 16000]), SR: 16000

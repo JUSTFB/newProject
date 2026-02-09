@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Video Dubbing Studio</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1>AI Dubbing Studio</h1>
+            <p class="subtitle">Transform your video content into any language instantly.</p>
+        </header>
+
+        <div class="glass-card">
+            <!-- Upload Section -->
+            <div class="form-group">
+                <label>Upload Video</label>
+                <div class="file-upload" id="dropZone">
+                    <input type="file" id="videoFile" accept="video/*" />
+                    <span class="upload-icon">📁</span>
+                    <span id="uploadText">Click or Drag video here</span>
+                    <div id="fileName" class="file-name hidden"></div>
+                </div>
+            </div>
+
+            <!-- Language Section -->
+            <div class="form-group">
+                <label>Target Language</label>
+                <select id="language" class="custom-select">
+                    <!-- Supported by Coqui XTTS (Voice Cloning) -->
+                    <option value="en">English (US)</option>
+                    <option value="es">Spanish (Spain)</option>
+                    <option value="fr">French (France)</option>
+                    <option value="de">German (Germany)</option>
+                    <option value="it">Italian (Italy)</option>
+                    <option value="pt">Portuguese (Portugal/Brazil)</option>
+                    <option value="pl">Polish (Poland)</option>
+                    <option value="tr">Turkish (Turkey)</option>
+                    <option value="ru">Russian (Russia)</option>
+                    <option value="nl">Dutch (Netherlands)</option>
+                    <option value="cs">Czech (Czech Republic)</option>
+                    <option value="ar">Arabic (UAE)</option>
+                    <option value="zh-cn">Chinese (Simplified)</option>
+                    <option value="ja">Japanese (Japan)</option>
+                    <option value="hu">Hungarian (Hungary)</option>
+                    <option value="ko">Korean (South Korea)</option>
+                    <option value="hi">Hindi (India)</option>
+
+                    <!-- Fallback to Google TTS (No Cloning) -->
+                    <option disabled>--- Standard Voice Only ---</option>
+                    <option value="gu">Gujarati (India)</option>
+                    <option value="ta">Tamil (India)</option>
+                    <option value="te">Telugu (India)</option>
+                    <option value="bn">Bengali (India)</option>
+                    <option value="mr">Marathi (India)</option>
+                </select>
+            </div>
+
+            <!-- Action Area -->
+            <button type="button" id="dubBtn" class="btn-primary">
+                <span>Start Dubbing</span>
+            </button>
+
+            <!-- Status Indicator -->
+            <div id="statusContainer" class="status-container hidden">
+                <span id="status" class="status-text">Initializing...</span>
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar-fill"></div>
+                </div>
+                <div id="progressPercentage" class="progress-text">0%</div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultArea" class="glass-card results-area hidden">
+            <!-- Text Result -->
+            <div class="result-group">
+                <div class="result-label">Translate Preview</div>
+                <div class="text-preview" id="translatedText"></div>
+            </div>
+
+            <!-- Video Result -->
+            <div class="result-group">
+                <div class="result-label">Final Output</div>
+                <video id="outputVideo" controls></video>
+
+                <div class="action-buttons">
+                    <a id="downloadLink" href="#" class="btn-primary" download>
+                        <span>⬇ Download Video</span>
+                    </a>
+                    <button id="speakBtn" class="btn-secondary">
+                        <span>🔊 Listen</span>
+                    </button>
+                    <button id="newBtn" class="btn-secondary">
+                        <span>🔄 New</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
