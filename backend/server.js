@@ -1,11 +1,14 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Explicitly load .env from project root to ensure CLOUD_API_URL is found
+dotenv.config({ path: resolve(__dirname, '../.env') });
 import express from "express";
 import multer from "multer";
-import extractAudio from "./services/extractAudio.js";
-import transcribeAudio from "./services/transcribe.js";
-import translateText from "./services/translate.js";
-import textToSpeech from "./services/textToSpeech.js";
-import mergeAudioVideo from "./services/mergeAudioVideo.js";
 import path from "path";
 
 // app.use("/uploads", express.static("uploads"));
@@ -44,9 +47,10 @@ app.post("/api/process", upload.single("file"), (req, res) => {
         const jobId = createJob();
         const videoPath = req.file.path;
         const targetLang = req.body?.lang || "hi";
+        const geminiApiKey = req.body.gemini_api_key || null;
 
         // Start processing in background (do not await)
-        processJob(jobId, videoPath, targetLang);
+        processJob(jobId, videoPath, targetLang, geminiApiKey);
 
         res.json({
             success: true,
@@ -78,7 +82,8 @@ app.get("/api/result/:jobId", (req, res) => {
     if (!job) {
         return res.status(404).json({ success: false, message: "Job not found" });
     }
-    if (job.status !== "completed") {
+    // Allow early result (streaming playlist) even if status is 'processing'
+    if (job.status !== "completed" && !job.result) {
         return res.status(400).json({ success: false, message: "Job not ready" });
     }
     res.json({
@@ -90,12 +95,12 @@ app.get("/api/result/:jobId", (req, res) => {
 // Background Worker Function
 import { runPythonDubbing } from "./services/pythonBridge.js";
 
-async function processJob(jobId, videoPath, targetLang) {
+async function processJob(jobId, videoPath, targetLang, geminiApiKey = null) {
     try {
         updateJob(jobId, { status: "processing", progress: 0, stage: "Starting AI Engine..." });
 
         // The bridge handles all updates via stdout parsing
-        await runPythonDubbing(jobId, videoPath, targetLang);
+        await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey);
 
     } catch (err) {
         console.error(`Job ${jobId} failed to start:`, err);
@@ -107,9 +112,10 @@ async function processJob(jobId, videoPath, targetLang) {
     }
 }
 
-app.listen(5000, () => {
+const server = app.listen(5000, () => {
     console.log("SERVER STARTED ON PORT 5000");
 });
+server.setTimeout(3600000); // 60 minutes
 
 
 

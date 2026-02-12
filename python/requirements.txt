@@ -3,3 +3,7 @@ ffmpeg-python
 openai-whisper
 deep-translator
 TTS
+soundfile
+numpy
+demucs
+faster-whisper

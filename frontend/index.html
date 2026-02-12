@@ -2,109 +2,535 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Video Dubbing Studio</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dubbing Studio Pro</title>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            /* Royal Blue */
+            --primary-hover: #1d4ed8;
+            --secondary: #3b82f6;
+            --bg: #0f172a;
+            /* Dark Slate Blue */
+            --surface: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #60a5fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(96, 165, 250, 0.1) 0%, transparent 20%);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin: 40px auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* Video Area */
+        .video-wrapper {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7);
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Placeholder / Loading States */
+        .placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+
+        .placeholder.hidden {
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .placeholder-icon {
+            font-size: 4rem;
+            color: var(--surface);
+            margin-bottom: 20px;
+        }
+
+        .placeholder-text {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(37, 99, 235, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Controls Section */
+        .controls-card {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-upload-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: var(--surface);
+            color: var(--text-muted);
+            border: 1px solid #333;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        .status-display {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            color: var(--accent);
+            font-size: 0.9rem;
+            display: none;
+            border-left: 4px solid var(--primary);
+        }
+
+        .progress-bar-container {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Video.js Overrides */
+        .video-js {
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-js .vjs-big-play-button {
+            background-color: var(--primary);
+            border: none;
+            width: 2em;
+            height: 2em;
+            line-height: 2em;
+            margin-left: -1em;
+            border-radius: 50%;
+        }
+
+        .vjs-tech {
+            object-fit: contain;
+        }
+
+        .file-info {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="app-container">
+
+    <div class="container">
         <header>
             <h1>AI Dubbing Studio</h1>
-            <p class="subtitle">Transform your video content into any language instantly.</p>
+            <p class="subtitle">Next-Gen Local Video Translation</p>
         </header>
 
-        <div class="glass-card">
-            <!-- Upload Section -->
-            <div class="form-group">
-                <label>Upload Video</label>
-                <div class="file-upload" id="dropZone">
-                    <input type="file" id="videoFile" accept="video/*" />
-                    <span class="upload-icon">📁</span>
-                    <span id="uploadText">Click or Drag video here</span>
-                    <div id="fileName" class="file-name hidden"></div>
+        <!-- 1. Video Player Area (Top) -->
+        <div class="video-wrapper">
+            <!-- State A: Idle -->
+            <div id="state-idle" class="placeholder">
+                <div class="placeholder-icon">🎬</div>
+                <div class="placeholder-text">Insert video below to start</div>
+            </div>
+
+            <!-- State B: Processing -->
+            <div id="state-processing" class="placeholder hidden">
+                <div class="spinner"></div>
+                <div class="placeholder-text" id="processing-text">Processing your video...</div>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #64748b;">Please wait while we initialize the AI
                 </div>
             </div>
 
-            <!-- Language Section -->
-            <div class="form-group">
-                <label>Target Language</label>
-                <select id="language" class="custom-select">
-                    <!-- Supported by Coqui XTTS (Voice Cloning) -->
-                    <option value="en">English (US)</option>
-                    <option value="es">Spanish (Spain)</option>
-                    <option value="fr">French (France)</option>
-                    <option value="de">German (Germany)</option>
-                    <option value="it">Italian (Italy)</option>
-                    <option value="pt">Portuguese (Portugal/Brazil)</option>
-                    <option value="pl">Polish (Poland)</option>
-                    <option value="tr">Turkish (Turkey)</option>
-                    <option value="ru">Russian (Russia)</option>
-                    <option value="nl">Dutch (Netherlands)</option>
-                    <option value="cs">Czech (Czech Republic)</option>
-                    <option value="ar">Arabic (UAE)</option>
-                    <option value="zh-cn">Chinese (Simplified)</option>
-                    <option value="ja">Japanese (Japan)</option>
-                    <option value="hu">Hungarian (Hungary)</option>
-                    <option value="ko">Korean (South Korea)</option>
-                    <option value="hi">Hindi (India)</option>
-
-                    <!-- Fallback to Google TTS (No Cloning) -->
-                    <option disabled>--- Standard Voice Only ---</option>
-                    <option value="gu">Gujarati (India)</option>
-                    <option value="ta">Tamil (India)</option>
-                    <option value="te">Telugu (India)</option>
-                    <option value="bn">Bengali (India)</option>
-                    <option value="mr">Marathi (India)</option>
-                </select>
-            </div>
-
-            <!-- Action Area -->
-            <button type="button" id="dubBtn" class="btn-primary">
-                <span>Start Dubbing</span>
-            </button>
-
-            <!-- Status Indicator -->
-            <div id="statusContainer" class="status-container hidden">
-                <span id="status" class="status-text">Initializing...</span>
-                <div class="progress-bar-container">
-                    <div id="progressBar" class="progress-bar-fill"></div>
-                </div>
-                <div id="progressPercentage" class="progress-text">0%</div>
-            </div>
+            <!-- State C: Player -->
+            <video id="my-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto"
+                data-setup='{}'>
+            </video>
         </div>
 
-        <!-- Results Section -->
-        <div id="resultArea" class="glass-card results-area hidden">
-            <!-- Text Result -->
-            <div class="result-group">
-                <div class="result-label">Translate Preview</div>
-                <div class="text-preview" id="translatedText"></div>
+        <!-- 2. Controls Area (Bottom) -->
+        <div class="controls-card">
+            <div class="file-upload-row">
+                <input type="file" id="fileInput" accept="video/mp4" style="display:none" onchange="handleFileSelect()">
+
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                    📂 Select Video
+                </button>
+
+                <div class="form-group">
+                    <label for="langSelect">Target Language</label>
+                    <select id="langSelect">
+                        <option value="hi">Hindi (India)</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="ja">Japanese</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="geminiKey">Gemini API Key (Pre-configured ✨)</label>
+                    <input type="password" id="geminiKey" value="AIzaSyBp-5CcBjg6LQKMaSI8j531z-3dcFSA80M"
+                        placeholder="API Key Loaded">
+                    <small style="color: #4ade80; display: block; margin-top: 5px;">✓ Key integrated
+                        automatically</small>
+                </div>
+
+                <button class="btn" id="uploadBtn" onclick="uploadVideo()" disabled>
+                    🚀 Start Dubbing
+                </button>
             </div>
 
-            <!-- Video Result -->
-            <div class="result-group">
-                <div class="result-label">Final Output</div>
-                <video id="outputVideo" controls></video>
+            <div style="text-align: center;">
+                <div id="fileName" class="file-info">No file selected</div>
+            </div>
 
-                <div class="action-buttons">
-                    <a id="downloadLink" href="#" class="btn-primary" download>
-                        <span>⬇ Download Video</span>
-                    </a>
-                    <button id="speakBtn" class="btn-secondary">
-                        <span>🔊 Listen</span>
-                    </button>
-                    <button id="newBtn" class="btn-secondary">
-                        <span>🔄 New</span>
-                    </button>
+            <!-- Progress Feedback -->
+            <div id="progress-container" style="display:none;">
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+                    <span id="status-label">Uploading...</span>
+                    <span id="percent-label">0%</span>
+                </div>
+                <div class="progress-bar-container" style="display:block;">
+                    <div class="progress-bar-fill" id="progress-fill"></div>
+                </div>
+                <div class="status-display" id="log-display" style="margin-top: 15px;">
+                    > Ready to process...
                 </div>
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <script>
+        let player;
+        let isPlayerInit = false;
+        let isUploading = false;
+        let activePollInterval = null; // Track active poll to clear between jobs
+
+        function handleFileSelect() {
+            const fileInput = document.getElementById("fileInput");
+            const fileNameDiv = document.getElementById("fileName");
+            const uploadBtn = document.getElementById("uploadBtn");
+
+            if (fileInput.files.length > 0) {
+                fileNameDiv.innerText = "Selected: " + fileInput.files[0].name;
+                fileNameDiv.style.color = "var(--accent)";
+                uploadBtn.disabled = false;
+            } else {
+                fileNameDiv.innerText = "No file selected";
+                uploadBtn.disabled = true;
+            }
+        }
+
+        function setUIState(state) {
+            const idle = document.getElementById("state-idle");
+            const process = document.getElementById("state-processing");
+
+            idle.classList.add("hidden");
+            process.classList.add("hidden");
+
+            if (state === 'idle') {
+                idle.classList.remove("hidden");
+            } else if (state === 'processing') {
+                process.classList.remove("hidden");
+            } else if (state === 'playing') {
+                // All placeholders hidden, player visible
+            }
+        }
+
+        async function uploadVideo() {
+            const fileInput = document.getElementById("fileInput");
+            const langSelect = document.getElementById("langSelect");
+
+            if (!fileInput.files[0]) return;
+            if (isUploading) return; // Prevent double-click
+
+            // Reset state from any previous job
+            isUploading = true;
+            isPlayerInit = false;
+            if (activePollInterval) {
+                clearInterval(activePollInterval);
+                activePollInterval = null;
+            }
+
+            // UI Updates
+            setUIState('processing');
+            document.getElementById("uploadBtn").disabled = true;
+            document.getElementById("progress-container").style.display = "block";
+            document.getElementById("log-display").style.display = "block";
+            document.getElementById("progress-fill").style.width = "0%";
+            document.getElementById("percent-label").innerText = "0%";
+            document.getElementById("status-label").innerText = "Uploading...";
+            document.getElementById("log-display").innerText = "> Uploading to server...";
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("lang", langSelect.value);
+
+            const geminiKey = document.getElementById("geminiKey").value;
+            if (geminiKey) {
+                formData.append("gemini_api_key", geminiKey);
+            }
+
+            try {
+                document.getElementById("status-label").innerText = "Uploading to server...";
+                const res = await fetch("http://localhost:5000/api/process", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    pollStatus(data.jobId);
+                } else {
+                    alert("Upload failed: " + data.message);
+                    resetUI();
+                }
+            } catch (e) {
+                alert("Error: " + e.message);
+                resetUI();
+            }
+        }
+
+        async function pollStatus(jobId) {
+            activePollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`http://localhost:5000/api/status/${jobId}`);
+                    const data = await res.json();
+
+                    if (data.success) {
+                        const pct = Math.round(data.progress);
+
+                        document.getElementById("progress-fill").style.width = pct + "%";
+                        document.getElementById("percent-label").innerText = pct + "%";
+                        document.getElementById("status-label").innerText = data.stage;
+
+                        const logDisplay = document.getElementById("log-display");
+                        if (logDisplay.innerText !== "> " + data.stage) {
+                            logDisplay.innerText = "> " + data.stage;
+                            if (data.stage && data.stage.includes("Chunk")) {
+                                logDisplay.style.color = "#4ade80";
+                                logDisplay.style.fontWeight = "bold";
+                            } else {
+                                logDisplay.style.color = "var(--accent)";
+                                logDisplay.style.fontWeight = "normal";
+                            }
+                        }
+
+                        document.getElementById("processing-text").innerText = data.stage;
+
+                        // Check for completed result
+                        if (data.status === "completed") {
+                            clearInterval(activePollInterval);
+                            activePollInterval = null;
+                            checkResult(jobId);
+                        } else if (data.status === "error") {
+                            clearInterval(activePollInterval);
+                            activePollInterval = null;
+                            alert("Error: " + data.stage);
+                            resetUI();
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }, 1500);
+        }
+
+        async function checkResult(jobId) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/result/${jobId}`);
+                if (res.status === 200) {
+                    const data = await res.json();
+
+                    if (data.success && !isPlayerInit) {
+                        if (data.playlistUrl) {
+                            initPlayer(data.playlistUrl, 'application/x-mpegURL');
+                        } else if (data.finalVideo) {
+                            initPlayer(data.finalVideo, 'video/mp4');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Result fetch error:", e);
+            }
+            // Allow new uploads after job completes
+            isUploading = false;
+            document.getElementById("uploadBtn").disabled = false;
+        }
+
+        function initPlayer(url, type) {
+            isPlayerInit = true;
+            setUIState('playing');
+
+            if (!player) {
+                player = videojs('my-video');
+            }
+
+            const fullUrl = `http://localhost:5000/${url}`;
+            console.log("Loading Video:", fullUrl, type);
+
+            player.src({
+                src: fullUrl,
+                type: type
+            });
+
+            player.play();
+        }
+
+        function resetUI() {
+            setUIState('idle');
+            document.getElementById("uploadBtn").disabled = false;
+            document.getElementById("progress-container").style.display = "none";
+            isPlayerInit = false;
+            isUploading = false;
+            if (activePollInterval) {
+                clearInterval(activePollInterval);
+                activePollInterval = null;
+            }
+        }
+    </script>
+
 </body>
 
 </html>
