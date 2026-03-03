@@ -7,3 +7,8 @@ soundfile
 numpy
 demucs
 faster-whisper
+edge-tts
+elevenlabs
+gTTS
+google-genai
+librosa

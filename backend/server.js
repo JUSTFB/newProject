@@ -44,18 +44,24 @@ app.post("/api/process", upload.single("file"), (req, res) => {
             });
         }
 
-        const jobId = createJob();
+        const previewMode = req.body?.preview === "true" || req.body?.preview === true;
+        const jobId = createJob({ previewMode });
         const videoPath = req.file.path;
         const targetLang = req.body?.lang || "hi";
         const geminiApiKey = req.body.gemini_api_key || null;
+        const voiceEngine = req.body.voice_engine || "edge";
+        const elevenlabsKey = req.body.elevenlabs_key || null;
+        const azureKey = req.body.azure_key || null;
+        const azureRegion = req.body.azure_region || "eastus";
 
         // Start processing in background (do not await)
-        processJob(jobId, videoPath, targetLang, geminiApiKey);
+        processJob(jobId, videoPath, targetLang, geminiApiKey, voiceEngine, elevenlabsKey, azureKey, azureRegion, previewMode);
 
         res.json({
             success: true,
             jobId,
-            message: "Processing started"
+            previewMode,
+            message: previewMode ? "Preview processing started" : "Processing started"
         });
 
     } catch (err) {
@@ -73,7 +79,13 @@ app.get("/api/status/:jobId", (req, res) => {
     if (!job) {
         return res.status(404).json({ success: false, message: "Job not found" });
     }
-    res.json({ success: true, status: job.status, progress: job.progress, stage: job.stage });
+    res.json({
+        success: true,
+        status: job.status,
+        progress: job.progress,
+        stage: job.stage,
+        previewMode: job.previewMode || false
+    });
 });
 
 // Result Endpoint
@@ -82,25 +94,39 @@ app.get("/api/result/:jobId", (req, res) => {
     if (!job) {
         return res.status(404).json({ success: false, message: "Job not found" });
     }
-    // Allow early result (streaming playlist) even if status is 'processing'
+
+    const type = req.query.type || "full";
+
+    // Preview result requested
+    if (type === "preview") {
+        if (!job.previewResult) {
+            return res.status(400).json({ success: false, message: "Preview not ready" });
+        }
+        return res.json({ success: true, type: "preview", ...job.previewResult });
+    }
+
+    // Full result requested — allow early result (streaming playlist) even if status is 'processing'
     if (job.status !== "completed" && !job.result) {
         return res.status(400).json({ success: false, message: "Job not ready" });
     }
     res.json({
         success: true,
+        type: "full",
         ...job.result
     });
 });
 
-// Background Worker Function
 import { runPythonDubbing } from "./services/pythonBridge.js";
+import fetch from "node-fetch";
+import FormData from "form-data";
+import fs from "fs";
 
-async function processJob(jobId, videoPath, targetLang, geminiApiKey = null) {
+async function processJob(jobId, videoPath, targetLang, geminiApiKey = null, voiceEngine = "edge", elevenlabsKey = null, azureKey = null, azureRegion = "eastus", previewMode = false) {
     try {
         updateJob(jobId, { status: "processing", progress: 0, stage: "Starting AI Engine..." });
 
         // The bridge handles all updates via stdout parsing
-        await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey);
+        await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey, voiceEngine, elevenlabsKey, azureKey, azureRegion, previewMode);
 
     } catch (err) {
         console.error(`Job ${jobId} failed to start:`, err);
@@ -112,19 +138,77 @@ async function processJob(jobId, videoPath, targetLang, geminiApiKey = null) {
     }
 }
 
+// Compare Endpoint — proxies to cloud /dub-compare
+app.post("/api/compare", upload.single("file"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No file received" });
+        }
+
+        const cloudUrl = process.env.CLOUD_API_URL;
+        if (!cloudUrl) {
+            return res.status(500).json({ success: false, message: "CLOUD_API_URL not configured" });
+        }
+
+        // Forward to cloud /dub-compare
+        const formData = new FormData();
+        formData.append("file", fs.createReadStream(req.file.path), req.file.originalname);
+        formData.append("target_lang", req.body?.lang || "hi");
+        if (req.body.gemini_api_key) formData.append("gemini_api_key", req.body.gemini_api_key);
+        if (req.body.elevenlabs_key) formData.append("elevenlabs_key", req.body.elevenlabs_key);
+        if (req.body.azure_key) formData.append("azure_key", req.body.azure_key);
+        if (req.body.azure_region) formData.append("azure_region", req.body.azure_region);
+
+        console.log(`\n🔬 Compare request → ${cloudUrl}/dub-compare`);
+
+        const response = await fetch(`${cloudUrl}/dub-compare`, {
+            method: 'POST',
+            body: formData,
+            headers: formData.getHeaders(),
+            timeout: 7200000 // 2 hours for long videos
+        });
+
+        const data = await response.json();
+
+        // Remap filenames to our proxy URLs
+        if (data.success && data.engines) {
+            // Store cloudUrl for proxying
+            global.__cloudUrl = cloudUrl;
+            global.__compareEngines = data.engines;
+        }
+
+        res.json(data);
+
+    } catch (err) {
+        console.error("Compare error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Proxy comparison video files from cloud
+app.get("/api/compare-video/:filename", async (req, res) => {
+    try {
+        const cloudUrl = process.env.CLOUD_API_URL || global.__cloudUrl;
+        if (!cloudUrl) {
+            return res.status(500).json({ error: "No cloud URL" });
+        }
+
+        const response = await fetch(`${cloudUrl}/compare-result/${req.params.filename}`);
+        if (!response.ok) {
+            return res.status(response.status).json({ error: "File not found on cloud" });
+        }
+
+        res.set('Content-Type', 'video/mp4');
+        response.body.pipe(res);
+
+    } catch (err) {
+        console.error("Compare video proxy error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 const server = app.listen(5000, () => {
     console.log("SERVER STARTED ON PORT 5000");
 });
 server.setTimeout(3600000); // 60 minutes
-
-
-
-
-
-
-
-
-
-
-
 
