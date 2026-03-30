@@ -1,0 +1,2 @@
+Enter host password for user 'tFormat':
+ STATUS: % -encodedCommand aAB0AHQAcABfAGMAbwBkAGUA  STATUS: % -encodedCommand aAB0AHQAcABfAGMAbwBkAGUA  STATUS: % -encodedCommand aAB0AHQAcABfAGMAbwBkAGUA 

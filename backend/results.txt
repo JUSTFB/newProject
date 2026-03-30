@@ -1,0 +1,8 @@
+GET /: 200 -> <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="
+POST /api/process: 400 -> {"success":false,"message":"No file received"}
+GET /api/status/x: 404 -> {"success":false,"message":"Job not found"}
+GET /api/unknown: 404 -> {"success":false,"message":"API endpoint not found"}

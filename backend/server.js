@@ -1,37 +1,47 @@
 import dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import express from "express";
+import multer from "multer";
+import path from "path";
+import cors from "cors";
+import fs from "fs";
+import fetch from "node-fetch";
+import FormData from "form-data";
+import { createJob, updateJob, getJob } from "./services/jobs.js";
+import { runPythonDubbing } from "./services/pythonBridge.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Explicitly load .env from project root to ensure CLOUD_API_URL is found
 dotenv.config({ path: resolve(__dirname, '../.env') });
-import express from "express";
-import multer from "multer";
-import path from "path";
-
-// app.use("/uploads", express.static("uploads"));
 
 const app = express();
-import cors from "cors";
-app.use(cors());
 
-app.use("/uploads", express.static("uploads"));
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+
+// Ensure uploads directory exists
+const uploadDir = "uploads";
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, "uploads"),
-    filename: (req, file, cb) =>
-        cb(null, Date.now() + "-" + file.originalname)
+    filename: (req, file, cb) => {
+        const safeName = path.basename(file.originalname);
+        cb(null, Date.now() + "-" + safeName);
+    }
 });
-
 const upload = multer({ storage });
 
-app.get("/", (req, res) => {
-    res.send("ROOT OK");
-});
 
-import { createJob, updateJob, getJob } from "./services/jobs.js";
 
 // Upload → Extract Audio → Transcribe
 // NOW: Non-blocking, returns jobId immediately
@@ -48,8 +58,8 @@ app.post("/api/process", upload.single("file"), (req, res) => {
         const jobId = createJob({ previewMode });
         const videoPath = req.file.path;
         const targetLang = req.body?.lang || "hi";
-        const geminiApiKey = req.body.gemini_api_key || null;
-        const voiceEngine = req.body.voice_engine || "edge";
+        const geminiApiKey = req.body.gemini_api_key || process.env.GEMINI_API_KEY || null;
+        const voiceEngine = req.body.voice_engine || "xtts";
         const elevenlabsKey = req.body.elevenlabs_key || null;
         const azureKey = req.body.azure_key || null;
         const azureRegion = req.body.azure_region || "eastus";
@@ -116,25 +126,44 @@ app.get("/api/result/:jobId", (req, res) => {
     });
 });
 
-import { runPythonDubbing } from "./services/pythonBridge.js";
-import fetch from "node-fetch";
-import FormData from "form-data";
-import fs from "fs";
+
+
+const jobQueue = [];
+let activeJobsCount = 0;
+const MAX_CONCURRENT_JOBS = parseInt(process.env.MAX_CONCURRENT_JOBS || "1", 10);
 
 async function processJob(jobId, videoPath, targetLang, geminiApiKey = null, voiceEngine = "edge", elevenlabsKey = null, azureKey = null, azureRegion = "eastus", previewMode = false) {
-    try {
-        updateJob(jobId, { status: "processing", progress: 0, stage: "Starting AI Engine..." });
+    const executeTask = async () => {
+        try {
+            updateJob(jobId, { status: "processing", progress: 0, stage: "Starting AI Engine..." });
+            await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey, voiceEngine, elevenlabsKey, azureKey, azureRegion, previewMode);
+        } catch (err) {
+            console.error(`Job ${jobId} failed to start:`, err);
+            updateJob(jobId, {
+                status: "error",
+                progress: 0,
+                stage: "Error: " + err.message
+            });
+        } finally {
+            activeJobsCount--;
+            processNextJob();
+        }
+    };
 
-        // The bridge handles all updates via stdout parsing
-        await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey, voiceEngine, elevenlabsKey, azureKey, azureRegion, previewMode);
+    if (activeJobsCount < MAX_CONCURRENT_JOBS) {
+        activeJobsCount++;
+        executeTask();
+    } else {
+        updateJob(jobId, { status: "pending", progress: 0, stage: "Queued (Waiting for GPU)..." });
+        jobQueue.push(executeTask);
+    }
+}
 
-    } catch (err) {
-        console.error(`Job ${jobId} failed to start:`, err);
-        updateJob(jobId, {
-            status: "error",
-            progress: 0,
-            stage: "Error: " + err.message
-        });
+function processNextJob() {
+    if (activeJobsCount < MAX_CONCURRENT_JOBS && jobQueue.length > 0) {
+        activeJobsCount++;
+        const nextTask = jobQueue.shift();
+        nextTask();
     }
 }
 
@@ -154,7 +183,8 @@ app.post("/api/compare", upload.single("file"), async (req, res) => {
         const formData = new FormData();
         formData.append("file", fs.createReadStream(req.file.path), req.file.originalname);
         formData.append("target_lang", req.body?.lang || "hi");
-        if (req.body.gemini_api_key) formData.append("gemini_api_key", req.body.gemini_api_key);
+        const compareGeminiKey = req.body.gemini_api_key || process.env.GEMINI_API_KEY;
+        if (compareGeminiKey) formData.append("gemini_api_key", compareGeminiKey);
         if (req.body.elevenlabs_key) formData.append("elevenlabs_key", req.body.elevenlabs_key);
         if (req.body.azure_key) formData.append("azure_key", req.body.azure_key);
         if (req.body.azure_region) formData.append("azure_region", req.body.azure_region);
@@ -193,7 +223,10 @@ app.get("/api/compare-video/:filename", async (req, res) => {
             return res.status(500).json({ error: "No cloud URL" });
         }
 
-        const response = await fetch(`${cloudUrl}/compare-result/${req.params.filename}`);
+        // Sanitize filename to prevent SSRF and path traversal
+        const safeFilename = encodeURIComponent(path.basename(req.params.filename));
+
+        const response = await fetch(`${cloudUrl}/compare-result/${safeFilename}`);
         if (!response.ok) {
             return res.status(response.status).json({ error: "File not found on cloud" });
         }
@@ -205,6 +238,34 @@ app.get("/api/compare-video/:filename", async (req, res) => {
         console.error("Compare video proxy error:", err);
         res.status(500).json({ error: err.message });
     }
+});
+
+// Static file serving — AFTER all API routes to prevent 405 on POST requests
+app.use("/uploads", express.static("uploads"));
+const frontendPath = resolve(__dirname, '../frontend');
+app.use(express.static(frontendPath));
+
+// Global JSON error handler — prevents Express from ever returning HTML errors
+app.use((err, req, res, next) => {
+    console.error('Express error:', err.message);
+
+    // Handle multer-specific errors
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+            success: false,
+            message: `Upload error: ${err.message}`
+        });
+    }
+
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal server error'
+    });
+});
+
+// 404 handler for API routes
+app.use('/api', (req, res) => {
+    res.status(404).json({ success: false, message: 'API endpoint not found' });
 });
 
 const server = app.listen(5000, () => {

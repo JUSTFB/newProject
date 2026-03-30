@@ -3,6 +3,9 @@ import sys
 import os
 import time
 import json
+import warnings
+warnings.simplefilter('ignore')
+os.environ["PYTHONWARNINGS"] = "ignore"
 import torch
 import ffmpeg
 import math
@@ -50,7 +53,7 @@ def get_audio_duration(file_path):
         probe = ffmpeg.probe(file_path)
         return float(probe['format']['duration'])
     except:
-        return 0
+        return 0.0
 
 def create_m3u8(output_dir, segments, target_duration=10):
     """Generate the HLS playlist file."""
@@ -119,12 +122,11 @@ def polish_text_with_gemini(text, target_language, api_key):
     try:
         genai.configure(api_key=api_key)
         
-        # PROMPT
         prompt = f'''Refine this text for a video dubbing script in {target_language}.
 Rules:
-1. Correct grammar/syntax.
-2. Make it sound natural and conversational.
-3. Do NOT change meaning.
+1. Translate contextually, ensuring correct grammar/syntax.
+2. Make it sound extremely natural and conversational (like a YouTube video).
+3. Do NOT change the meaning or length significantly.
 4. Output ONLY the polished text.
 
 Input: "{text}"'''
@@ -212,7 +214,7 @@ def run_master_process(args):
         
         start = i * chunk_len
         end = (i + 1) * chunk_len
-        if i == num_workers - 1: end = duration + 1 # Ensure coverage
+        if i == num_workers - 1: end = float(duration) + 1.0 # Ensure coverage
         
         cmd = [
             sys.executable, script_path,
@@ -262,7 +264,8 @@ def run_master_process(args):
     
     update_status(100, "Completed", {
         "result": {
-            "finalVideo": os.path.basename(args.output_path)
+            "finalVideo": os.path.basename(args.output_path),
+            "srtFile": os.path.basename(args.output_path).replace(".mp4", ".srt")
         }
     })
 
@@ -338,9 +341,9 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
         
         compute_type = "int8"
         try:
-            model = WhisperModel("small", device="cpu", compute_type=compute_type)
+            model = WhisperModel("large-v3", device=device, compute_type=compute_type)
         except:
-             model = WhisperModel("tiny", device="cpu", compute_type=compute_type)
+             model = WhisperModel("small", device=device, compute_type=compute_type)
              
         # Use VAD
         segments_generator, info = model.transcribe(
@@ -351,6 +354,20 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
         )
         segments = [{"start": s.start, "end": s.end, "text": s.text} for s in segments_generator]
         print(f"{log_prefix} Found {len(segments)} segments.")
+        
+        # Save Subtitles
+        if not audio_only and len(segments) > 0:
+            srt_path = final_output_path.replace(".mp4", ".srt")
+            def format_ts(seconds):
+                ms = int((seconds % 1) * 1000)
+                sec = int(seconds)
+                m, s = divmod(sec, 60)
+                h, m = divmod(m, 60)
+                return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+            
+            with open(srt_path, "w", encoding="utf-8") as f:
+                for idx, s in enumerate(segments, 1):
+                    f.write(f"{idx}\n{format_ts(s['start'])} --> {format_ts(s['end'])}\n{s['text'].strip()}\n\n")
         
         # Cleanup RAM
         del model
@@ -394,7 +411,7 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
 
         from concurrent.futures import ThreadPoolExecutor
         
-        temp_tts_files = [None] * len(segments) 
+        temp_tts_files = [{}] * len(segments)
         executor = ThreadPoolExecutor(max_workers=4)
         futures = []
 
@@ -408,7 +425,7 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
             
             # Speed Clamping to prevent artifacts
             speed_factor = actual_dur / target_dur
-            speed_factor = max(0.75, min(speed_factor, 1.3)) # Clamp between 0.75x and 1.3x
+            speed_factor = max(0.65, min(speed_factor, 1.65)) # Wide clamp
             
             synced_path = os.path.join(chunks_dir, f"synced_{idx}.wav")
             # atempo filter limit is 0.5 to 2.0 usually, but quality degrades outside 0.8-1.2
@@ -434,13 +451,13 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
                  executor.submit(slice_audio, start, end, ref_path)
             
             # Gap
-            gap_duration = start - current_time
+            gap_duration = float(start) - float(current_time)
             if gap_duration > 0.1:
                 gap_path = os.path.join(chunks_dir, f"gap_{i}.wav")
                 subprocess.run(f"ffmpeg -f lavfi -i anullsrc=r=24000:cl=mono -t {gap_duration} {gap_path} -y -loglevel error", shell=True)
-                temp_tts_files[i] = {"gap": gap_path, "tts": None}
+                temp_tts_files[i] = {"gap": gap_path, "tts": ""}
             else:
-                 temp_tts_files[i] = {"gap": None, "tts": None}
+                 temp_tts_files[i] = {"gap": "", "tts": ""}
 
             # Translate
             try:
@@ -460,7 +477,12 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
             if use_xtts:
                 try:
                     # XTTS (Zero-Shot Cloning) - Tier 1 Priority
-                    tts_engine.tts_to_file(text=translated_text, speaker_wav=ref_path, language=target_lang, file_path=tts_chunk_path)
+                    # Ensure text ends with a period to prevent hallucination loops
+                    xtts_text = translated_text.strip()
+                    if not xtts_text.endswith('.') and not xtts_text.endswith('?') and not xtts_text.endswith('!'):
+                        xtts_text += '.'
+                    
+                    tts_engine.tts_to_file(text=xtts_text, speaker_wav=ref_path, language=target_lang, file_path=tts_chunk_path, temperature=0.65, repetition_penalty=10.0)
                 except Exception as e:
                     print(f"⚠️ XTTS Error seg {i} (VRAM/Speed issue): {e}. Falling back to Edge TTS...")
                     # FALLBACK LAYER 1: EDGE TTS
@@ -509,8 +531,8 @@ def process_video_turbo(input_path, target_lang, work_dir, final_output_path, au
             if item and item["gap"]: ordered_files.append(item["gap"])
             if item and item["tts"]: ordered_files.append(item["tts"])
             
-        if current_time < total_duration:
-             gap_duration = total_duration - current_time
+        if float(current_time) < float(total_duration):
+             gap_duration = float(total_duration) - float(current_time)
              gap_path = os.path.join(chunks_dir, "gap_end.wav")
              subprocess.run(f"ffmpeg -f lavfi -i anullsrc=r=24000:cl=mono -t {gap_duration} {gap_path} -y -loglevel error", shell=True)
              ordered_files.append(gap_path)
@@ -554,8 +576,7 @@ if __name__ == "__main__":
     parser.add_argument("--end_time", type=float, default=0)
     
     # Optional API Key
-    # Proactively adding default for user convenience
-    parser.add_argument("--gemini_api_key", type=str, default="AIzaSyBp-5CcBjg6LQKMaSI8j531z-3dcFSA80M")
+    parser.add_argument("--gemini_api_key", type=str, default=None)
     
     args = parser.parse_args()
 

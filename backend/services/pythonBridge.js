@@ -78,8 +78,14 @@ const runCloudDubbing = async (jobId, videoPath, targetLang, geminiApiKey = null
         clearInterval(simInterval);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: "Unknown cloud error" }));
-            throw new Error(errorData.error || `Cloud API returned ${response.status}`);
+            const rawText = await response.text();
+            console.error(`[Job ${jobId}] ☁️ RAW Cloud Error (${response.status}):`, rawText.substring(0, 500));
+            let errorMsg = `Cloud API returned ${response.status}`;
+            try { 
+                const j = JSON.parse(rawText);
+                if (j.error) errorMsg = j.error;
+            } catch(e) {}
+            throw new Error(errorMsg);
         }
 
         // Save the returned video
@@ -329,12 +335,18 @@ const runLocalDubbing = (jobId, videoPath, targetLang, geminiApiKey = null, voic
 
         const pythonProcess = spawn("py", args, {
             env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-            shell: true
+            shell: false // Prevent Command Injection by avoiding shell evaluation
         });
 
+        let stdoutBuffer = "";
         pythonProcess.stdout.on("data", (data) => {
-            const lines = data.toString().split("\n");
-            for (const line of lines) {
+            stdoutBuffer += data.toString();
+            let newlineIndex;
+            
+            while ((newlineIndex = stdoutBuffer.indexOf("\n")) !== -1) {
+                const line = stdoutBuffer.slice(0, newlineIndex);
+                stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+                
                 if (!line.trim()) continue;
 
                 try {

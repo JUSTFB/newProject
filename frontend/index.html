@@ -1,1508 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Dubbing Studio Pro</title>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --primary-glow: rgba(37, 99, 235, 0.25);
-            --secondary: #3b82f6;
-            --bg: #0b0f1a;
-            --surface: rgba(15, 23, 42, 0.8);
-            --surface-2: rgba(30, 41, 59, 0.6);
-            --border: rgba(148, 163, 184, 0.08);
-            --text: #e2e8f0;
-            --text-muted: #64748b;
-            --accent: #60a5fa;
-            --green: #22c55e;
-            --green-glow: rgba(34, 197, 94, 0.2);
-            --amber: #f59e0b;
-            --red: #ef4444;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background:
-                radial-gradient(ellipse at 20% 20%, rgba(37, 99, 235, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
-            z-index: -1;
-        }
-
-        .container {
-            width: 92%;
-            max-width: 960px;
-            margin: 40px auto;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        /* ─── Header ─── */
-        header {
-            text-align: center;
-            margin-bottom: 8px;
-        }
-
-        h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: #f8fafc;
-            letter-spacing: -0.5px;
-        }
-
-        h1 span {
-            background: linear-gradient(135deg, var(--accent), var(--primary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: var(--text-muted);
-            margin-top: 6px;
-            font-size: 0.8rem;
-            font-weight: 400;
-            letter-spacing: 0.3px;
-        }
-
-        /* ─── Video Area ─── */
-        .video-wrapper {
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            position: relative;
-            border: 1px solid var(--border);
-        }
-
-        .placeholder {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(160deg, #0f172a 0%, #0b0f1a 100%);
-            z-index: 10;
-            transition: opacity 0.5s ease;
-        }
-
-        .placeholder.hidden {
-            opacity: 0;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .placeholder-icon {
-            font-size: 3rem;
-            margin-bottom: 12px;
-            opacity: 0.6;
-        }
-
-        .placeholder-text {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            font-weight: 400;
-        }
-
-        /* ─── Processing Overlay ─── */
-        #state-processing {
-            background: linear-gradient(160deg, #0f172a 0%, #0b0f1a 100%);
-            padding: 28px;
-        }
-
-        .waveform {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            height: 48px;
-            margin-bottom: 24px;
-        }
-
-        .waveform .bar {
-            width: 3px;
-            background: linear-gradient(to top, var(--primary), var(--accent));
-            border-radius: 2px;
-            animation: wave 1.2s ease-in-out infinite;
-        }
-
-        .waveform .bar:nth-child(1) {
-            height: 16px;
-            animation-delay: 0s;
-        }
-
-        .waveform .bar:nth-child(2) {
-            height: 28px;
-            animation-delay: 0.1s;
-        }
-
-        .waveform .bar:nth-child(3) {
-            height: 40px;
-            animation-delay: 0.2s;
-        }
-
-        .waveform .bar:nth-child(4) {
-            height: 24px;
-            animation-delay: 0.3s;
-        }
-
-        .waveform .bar:nth-child(5) {
-            height: 36px;
-            animation-delay: 0.4s;
-        }
-
-        .waveform .bar:nth-child(6) {
-            height: 20px;
-            animation-delay: 0.5s;
-        }
-
-        .waveform .bar:nth-child(7) {
-            height: 44px;
-            animation-delay: 0.15s;
-        }
-
-        .waveform .bar:nth-child(8) {
-            height: 28px;
-            animation-delay: 0.35s;
-        }
-
-        .waveform .bar:nth-child(9) {
-            height: 32px;
-            animation-delay: 0.25s;
-        }
-
-        .waveform .bar:nth-child(10) {
-            height: 16px;
-            animation-delay: 0.45s;
-        }
-
-        .waveform .bar:nth-child(11) {
-            height: 40px;
-            animation-delay: 0.05s;
-        }
-
-        .waveform .bar:nth-child(12) {
-            height: 24px;
-            animation-delay: 0.2s;
-        }
-
-        @keyframes wave {
-
-            0%,
-            100% {
-                transform: scaleY(0.4);
-                opacity: 0.4;
-            }
-
-            50% {
-                transform: scaleY(1);
-                opacity: 1;
-            }
-        }
-
-        /* Step Progress */
-        .step-timeline {
-            display: flex;
-            gap: 0;
-            margin: 16px 0;
-            width: 100%;
-            position: relative;
-        }
-
-        .step-item {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        .step-dot {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: rgba(30, 41, 59, 0.8);
-            border: 1.5px solid rgba(148, 163, 184, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            transition: all 0.4s ease;
-        }
-
-        .step-dot.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            box-shadow: 0 0 16px var(--primary-glow);
-            animation: dotPulse 2s ease-in-out infinite;
-        }
-
-        .step-dot.done {
-            background: var(--green);
-            border-color: var(--green);
-            box-shadow: 0 0 10px var(--green-glow);
-        }
-
-        @keyframes dotPulse {
-
-            0%,
-            100% {
-                box-shadow: 0 0 12px var(--primary-glow);
-            }
-
-            50% {
-                box-shadow: 0 0 24px var(--primary-glow);
-            }
-        }
-
-        .step-label {
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            margin-top: 5px;
-            text-align: center;
-            max-width: 72px;
-            transition: color 0.3s;
-            line-height: 1.2;
-        }
-
-        .step-item.active .step-label {
-            color: var(--accent);
-            font-weight: 500;
-        }
-
-        .step-item.done .step-label {
-            color: var(--green);
-        }
-
-        .step-line {
-            position: absolute;
-            top: 13px;
-            left: 50px;
-            right: 50px;
-            height: 1.5px;
-            background: rgba(148, 163, 184, 0.08);
-            z-index: 0;
-        }
-
-        .step-line-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--green), var(--primary));
-            width: 0%;
-            transition: width 0.8s ease;
-            border-radius: 1px;
-        }
-
-        /* Main progress bar */
-        .main-progress {
-            width: 100%;
-            height: 4px;
-            background: rgba(148, 163, 184, 0.08);
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 12px 0;
-        }
-
-        .main-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            width: 0%;
-            transition: width 0.6s ease;
-            border-radius: 2px;
-        }
-
-        /* Status */
-        .status-area {
-            text-align: center;
-            margin: 8px 0;
-        }
-
-        .status-step-name {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 3px;
-        }
-
-        .status-detail {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 4px;
-            font-size: 0.75rem;
-        }
-
-        .timer {
-            color: var(--text-muted);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .percent {
-            font-weight: 600;
-            color: var(--accent);
-            font-size: 0.9rem;
-        }
-
-        /* Fun fact */
-        .fun-fact {
-            background: rgba(37, 99, 235, 0.06);
-            border: 1px solid rgba(37, 99, 235, 0.1);
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-top: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            animation: factFadeIn 0.5s ease;
-        }
-
-        @keyframes factFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(4px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fun-fact-icon {
-            font-size: 1.1rem;
-            flex-shrink: 0;
-        }
-
-        .fun-fact-text {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
-
-        /* ─── Controls Card ─── */
-        .controls-card {
-            background: var(--surface);
-            backdrop-filter: blur(20px);
-            padding: 24px 28px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .file-upload-row {
-            display: flex;
-            gap: 10px;
-            align-items: flex-end;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .form-group label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-        }
-
-        /* Buttons */
-        .btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            font-size: 0.85rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px var(--primary-glow);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            background: rgba(30, 41, 59, 0.6);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid rgba(148, 163, 184, 0.15);
-            color: var(--text);
-            box-shadow: none;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(148, 163, 184, 0.06);
-            border-color: rgba(148, 163, 184, 0.25);
-            box-shadow: none;
-        }
-
-        .btn-compare {
-            background: transparent;
-            border: 1px solid rgba(148, 163, 184, 0.15);
-            color: var(--text-muted);
-            box-shadow: none;
-        }
-
-        .btn-compare:hover {
-            background: rgba(148, 163, 184, 0.06);
-            border-color: rgba(148, 163, 184, 0.25);
-            color: var(--text);
-            box-shadow: none;
-        }
-
-        /* Inputs */
-        select,
-        input[type="password"],
-        input[type="text"] {
-            padding: 9px 12px;
-            border-radius: 6px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            color: var(--text);
-            font-family: inherit;
-            font-size: 0.82rem;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-
-        select:focus,
-        input[type="password"]:focus,
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .file-info {
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        /* ─── Progress Container ─── */
-        #progress-container {
-            display: none;
-            background: var(--surface);
-            backdrop-filter: blur(20px);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            padding: 20px 24px;
-        }
-
-        /* Video.js Overrides */
-        .video-js {
-            width: 100%;
-            height: 100%;
-        }
-
-        .video-js .vjs-big-play-button {
-            background-color: var(--primary);
-            border: none;
-            width: 2.5em;
-            height: 2.5em;
-            line-height: 2.5em;
-            margin-left: -1.25em;
-            border-radius: 50%;
-            box-shadow: 0 0 20px var(--primary-glow);
-        }
-
-        .vjs-tech {
-            object-fit: contain;
-        }
-
-        /* Particles */
-        .particles {
-            position: absolute;
-            inset: 0;
-            overflow: hidden;
-            z-index: 0;
-        }
-
-        .particle {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: var(--accent);
-            border-radius: 50%;
-            opacity: 0.2;
-            animation: float linear infinite;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translateY(100%) translateX(0);
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 0.3;
-            }
-
-            90% {
-                opacity: 0.1;
-            }
-
-            100% {
-                transform: translateY(-100%) translateX(20px);
-                opacity: 0;
-            }
-        }
-
-        /* ─── Comparison Modal ─── */
-        .compare-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 1000;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .compare-overlay.visible {
-            display: block;
-        }
-
-        .compare-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            margin-bottom: 15px;
-        }
-
-        .compare-header h2 {
-            font-size: 1.2rem;
-            color: var(--text);
-            font-weight: 600;
-        }
-
-        .compare-close {
-            background: rgba(148, 163, 184, 0.08);
-            border: 1px solid rgba(148, 163, 184, 0.15);
-            color: var(--text-muted);
-            padding: 6px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.82rem;
-            transition: all 0.2s;
-        }
-
-        .compare-close:hover {
-            background: rgba(148, 163, 184, 0.15);
-            color: var(--text);
-        }
-
-        .compare-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .compare-panel {
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-        }
-
-        .compare-panel-header {
-            padding: 10px 14px;
-            background: rgba(37, 99, 235, 0.06);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .engine-badge {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-edge {
-            background: rgba(34, 197, 94, 0.12);
-            color: #4ade80;
-        }
-
-        .badge-xtts {
-            background: rgba(245, 158, 11, 0.12);
-            color: #fbbf24;
-        }
-
-        .badge-elevenlabs {
-            background: rgba(139, 92, 246, 0.12);
-            color: #a78bfa;
-        }
-
-        .badge-azure {
-            background: rgba(37, 99, 235, 0.12);
-            color: #60a5fa;
-        }
-
-        .compare-panel video {
-            width: 100%;
-            display: block;
-        }
-
-        .compare-sync-bar {
-            text-align: center;
-            padding: 10px;
-            background: rgba(15, 23, 42, 0.6);
-        }
-
-        .compare-sync-bar button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 7px 18px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.8rem;
-            margin: 0 4px;
-            transition: background 0.2s;
-        }
-
-        .compare-sync-bar button:hover {
-            background: var(--primary-hover);
-        }
-
-        /* Engine keys */
-        .engine-key-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .engine-key-row .form-group {
-            min-width: 160px;
-        }
-
-        .engine-key-row.hidden-keys {
-            display: none;
-        }
-
-        @media (max-width: 800px) {
-            .compare-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                width: 96%;
-                margin: 20px auto;
-                gap: 16px;
-            }
-
-            h1 {
-                font-size: 1.4rem;
-            }
-
-            .controls-card {
-                padding: 16px 18px;
-            }
-
-            .file-upload-row {
-                gap: 8px;
-            }
-
-            .btn {
-                padding: 8px 16px;
-                font-size: 0.8rem;
-            }
-        }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DubAI Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
-
 <body>
 
-    <div class="container">
-        <header>
-            <h1>AI Dubbing <span></span>Studio</span></h1>
-            <p class="subtitle">Multi-engine AI video translation and voice cloning</p>
-        </header>
+<header class="nav">
+  <div class="nav-logo" style="display:flex; align-items:center;">
+    <div class="nav-logo-icon">🎙</div>
+    <span>DubAI <em>Studio</em></span>
+    <span style="background:var(--bg-card); border:1px solid var(--border); padding:2px 8px; border-radius:12px; font-size:11px; margin-left:12px; color:var(--text); font-family:monospace; margin-top:2px;">Change: 1</span>
+  </div>
+  <div class="nav-actions">
+    <div class="theme-toggle" id="themeToggle">
+      <button class="theme-btn active" id="btnLight" onclick="setTheme('light')">
+        <span class="tb-icon">☀️</span> Light
+      </button>
+      <button class="theme-btn" id="btnDark" onclick="setTheme('dark')">
+        <span class="tb-icon">🌙</span> Dark
+      </button>
+    </div>
+    <button class="nav-btn" onclick="openCompare()">⚡ Engines</button>
+    <button class="nav-btn" onclick="resetApp()">↺ Reset</button>
+  </div>
+</header>
 
-        <!-- Video Player Area -->
-        <div class="video-wrapper">
-            <!-- State A: Idle -->
-            <div id="state-idle" class="placeholder">
-                <div class="placeholder-icon">🎬</div>
-                <div class="placeholder-text">Select a video below to begin</div>
-            </div>
+<div class="main">
 
-            <!-- State B: Processing -->
-            <div id="state-processing" class="placeholder hidden">
-                <div class="particles" id="particles-container"></div>
-                <div
-                    style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; width:90%; max-width:550px;">
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">✦ AI-Powered Dubbing</div>
+    <h1>Dub any video into<br/><span>any language</span></h1>
+    <p>Upload your video, choose a language and voice engine — we handle the rest in 8 automated steps.</p>
+  </div>
 
-                    <!-- Waveform animation -->
-                    <div class="waveform">
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                        <div class="bar"></div>
-                    </div>
+  <!-- STEPS PROGRESS BAR -->
+  <div class="steps-row">
+    <div class="step-item"><div class="step-num">1</div><div class="step-label">Upload</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-label">Extract</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-label">Separate</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-label">Transcribe</div></div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-label">Translate</div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-label">Synthesize</div></div>
+    <div class="step-item"><div class="step-num">7</div><div class="step-label">Mix</div></div>
+    <div class="step-item">
+      <div class="step-num done">✓</div>
+      <div class="step-label">Done</div>
+    </div>
+  </div>
 
-                    <!-- Step timeline -->
-                    <div class="step-timeline" id="step-timeline">
-                        <div class="step-line">
-                            <div class="step-line-fill" id="step-line-fill"></div>
-                        </div>
-                        <div class="step-item" data-step="0">
-                            <div class="step-dot">📤</div>
-                            <div class="step-label">Upload</div>
-                        </div>
-                        <div class="step-item" data-step="1">
-                            <div class="step-dot">🎵</div>
-                            <div class="step-label">Extract Audio</div>
-                        </div>
-                        <div class="step-item" data-step="2">
-                            <div class="step-dot">🎤</div>
-                            <div class="step-label">Vocal Separate</div>
-                        </div>
-                        <div class="step-item" data-step="3">
-                            <div class="step-dot">📝</div>
-                            <div class="step-label">Transcribe</div>
-                        </div>
-                        <div class="step-item" data-step="4">
-                            <div class="step-dot">🌍</div>
-                            <div class="step-label">Translate</div>
-                        </div>
-                        <div class="step-item" data-step="5">
-                            <div class="step-dot">🗣️</div>
-                            <div class="step-label">Voice Clone</div>
-                        </div>
-                        <div class="step-item" data-step="6">
-                            <div class="step-dot">🎚️</div>
-                            <div class="step-label">Mix & Master</div>
-                        </div>
-                        <div class="step-item" data-step="7">
-                            <div class="step-dot">✅</div>
-                            <div class="step-label">Done!</div>
-                        </div>
-                    </div>
+  <!-- LEFT COLUMN -->
+  <div class="left-col">
 
-                    <!-- Progress bar -->
-                    <div class="main-progress">
-                        <div class="main-progress-fill" id="main-progress-fill"></div>
-                    </div>
-
-                    <!-- Stats -->
-                    <div class="stats-row" style="width:100%;">
-                        <span class="timer" id="timer-display">⏱ 0:00</span>
-                        <span class="percent" id="percent-display">0%</span>
-                    </div>
-
-                    <!-- Current status -->
-                    <div class="status-area">
-                        <div class="status-step-name" id="status-step-name">Uploading your video...</div>
-                        <div class="status-detail" id="status-detail">Preparing to process</div>
-                    </div>
-
-                    <!-- Fun facts -->
-                    <div class="fun-fact" id="fun-fact">
-                        <span class="fun-fact-icon">💡</span>
-                        <span class="fun-fact-text" id="fun-fact-text">AI dubbing analyzes the emotion in every sentence
-                            to match the original speaker's energy.</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- State C: Player -->
-            <video id="my-video" class="video-js vjs-default-skin vjs-big-play-centered" controls preload="auto"
-                data-setup='{}'>
-            </video>
+    <!-- STEP 1 — Upload -->
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>Step 1 — Upload Your Video</div>
+      <div class="drop-zone" id="dz">
+        <input type="file" id="vi" accept="video/*"/>
+        <div class="drop-icon">🎬</div>
+        <div class="drop-title">Drop your video here</div>
+        <div class="drop-sub">MP4 · MOV · AVI · MKV &nbsp;·&nbsp; up to 2 GB</div>
+        <div class="drop-btn">Browse files</div>
+      </div>
+      <div class="file-chip" id="fc">
+        <span class="fc-icon">🎞</span>
+        <div>
+          <div class="fc-name" id="fcN">—</div>
+          <div class="fc-size" id="fcS">—</div>
         </div>
-
-        <!-- Controls Card -->
-        <div class="controls-card">
-            <div class="file-upload-row">
-                <input type="file" id="fileInput" accept="video/mp4" style="display:none" onchange="handleFileSelect()">
-
-                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
-                    📂 Select Video
-                </button>
-
-                <div class="form-group">
-                    <label for="langSelect">Target Language</label>
-                    <select id="langSelect">
-                        <option value="en">English</option>
-                        <option value="hi">Hindi (India)</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="ja">Japanese</option>
-                        <option value="ko">Korean</option>
-                        <option value="pt">Portuguese</option>
-                        <option value="ru">Russian</option>
-                        <option value="it">Italian</option>
-                        <option value="zh-cn">Chinese</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="engineSelect">Voice Engine</label>
-                    <select id="engineSelect" onchange="onEngineChange()">
-                        <option value="edge">🟢 Edge TTS (Free, Unlimited)</option>
-                        <option value="xtts">🟡 XTTS Voice Clone (GPU)</option>
-                        <option value="elevenlabs">🟣 ElevenLabs (Premium)</option>
-                        <option value="azure">🔵 Azure Neural (500K Free)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="geminiKey">Gemini API Key</label>
-                    <input type="password" id="geminiKey" value="AIzaSyBp-5CcBjg6LQKMaSI8j531z-3dcFSA80M"
-                        placeholder="Enter Gemini Key">
-                </div>
-            </div>
-
-            <!-- Engine-specific API key inputs (hidden by default) -->
-            <div class="engine-key-row hidden-keys" id="elevenlabs-keys">
-                <div class="form-group">
-                    <label for="elevenlabsKey">🟣 ElevenLabs API Key</label>
-                    <input type="password" id="elevenlabsKey"
-                        value="sk_73c1038eb50b378cb55dc526d70d5226d7fb02083fa81030"
-                        placeholder="Get free key at elevenlabs.io">
-                </div>
-            </div>
-            <div class="engine-key-row hidden-keys" id="azure-keys">
-                <div class="form-group">
-                    <label for="azureKey">🔵 Azure Speech Key</label>
-                    <input type="password" id="azureKey" placeholder="Azure subscription key">
-                </div>
-                <div class="form-group">
-                    <label for="azureRegion">Region</label>
-                    <input type="text" id="azureRegion" value="eastus" placeholder="e.g. eastus">
-                </div>
-            </div>
-
-            <div class="file-upload-row">
-                <button class="btn" id="uploadBtn" onclick="uploadVideo()" disabled>
-                    🚀 Start Dubbing
-                </button>
-                <button class="btn btn-compare" id="compareBtn" onclick="compareAllEngines()" disabled>
-                    🔬 Compare All Engines
-                </button>
-            </div>
-            <div id="fileName" class="file-info">No file selected</div>
-        </div>
-
-        <!-- Comparison Modal -->
-        <div class="compare-overlay" id="compare-overlay">
-            <div class="compare-header">
-                <h2>🔬 Engine Comparison</h2>
-                <button class="compare-close" onclick="closeCompare()">✕ Close</button>
-            </div>
-            <div class="compare-sync-bar">
-                <button onclick="syncPlayAll()">▶ Play All Synced</button>
-                <button onclick="syncPauseAll()">⏸ Pause All</button>
-                <button onclick="syncRestartAll()">⏮ Restart All</button>
-            </div>
-            <div class="compare-grid" id="compare-grid"></div>
-        </div>
+        <button class="fc-clear" onclick="clearFile()" title="Remove file">✕</button>
+      </div>
     </div>
 
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script>
-        let player;
-        let isPlayerInit = false;
-        let isUploading = false;
-        let activePollInterval = null;
-        let timerInterval = null;
-        let startTime = null;
-        let currentStep = -1;
-        let funFactInterval = null;
-
-        // ─── Fun Facts (rotate during processing) ───
-        const funFacts = [
-            { icon: "🎭", text: "The AI detects 7 different emotions — excited, happy, sad, angry, whisper, serious, and neutral — from the original audio." },
-            { icon: "🧬", text: "XTTS v2 clones the speaker's voice from just 12 seconds of audio, capturing their unique vocal fingerprint." },
-            { icon: "🎵", text: "Demucs separates vocals from music with 5 analysis passes for maximum clarity." },
-            { icon: "🌍", text: "Gemini translates all dialogue as a complete scene — preserving character personality and cultural context." },
-            { icon: "📐", text: "Each segment is precisely time-stretched using Rubberband to match the original lip movements." },
-            { icon: "😮‍💨", text: "Natural micro-pauses and breathing patterns are inserted between sentences for human-like rhythm." },
-            { icon: "🎚️", text: "Two-pass broadcast loudness normalization ensures consistent, professional audio levels." },
-            { icon: "🔇", text: "A professional de-esser removes harsh 'S' sounds for smoother, cleaner dialogue." },
-            { icon: "🏠", text: "Gaps between speech use extracted room ambience instead of dead silence for natural transitions." },
-            { icon: "🎯", text: "The AI generates voice clones twice and picks the better-sounding one for each sentence." },
-            { icon: "📝", text: "Whisper large-v3 with beam search 5 produces near-perfect transcriptions even with accents." },
-            { icon: "🎼", text: "Prosody transfer matches the original speaker's pitch contour and energy to the dubbed voice." },
-        ];
-        let lastFactIdx = -1;
-
-        // ─── Step Definitions (map backend stages to steps) ───
-        const stepKeywords = [
-            { step: 0, keywords: ["upload", "sending", "cloud"] },
-            { step: 1, keywords: ["extract", "audio", "step 1"] },
-            { step: 2, keywords: ["vocal", "separat", "demucs", "step 2"] },
-            { step: 3, keywords: ["transcrib", "whisper", "step 3"] },
-            { step: 4, keywords: ["translat", "gemini", "step 5"] },
-            { step: 5, keywords: ["dub", "xtts", "cloning", "segment", "voice", "step 6", "edge"] },
-            { step: 6, keywords: ["mix", "merg", "loudnorm", "master", "step 7", "step 8", "final"] },
-            { step: 7, keywords: ["completed", "done", "complete"] },
-        ];
-
-        function detectStep(stageText) {
-            if (!stageText) return 0;
-            const lower = stageText.toLowerCase();
-            for (let i = stepKeywords.length - 1; i >= 0; i--) {
-                if (stepKeywords[i].keywords.some(kw => lower.includes(kw))) {
-                    return stepKeywords[i].step;
-                }
-            }
-            return currentStep;
-        }
-
-        function updateStepUI(step) {
-            if (step <= currentStep) return; // Only go forward
-            currentStep = step;
-
-            const items = document.querySelectorAll('.step-item');
-            items.forEach((item, idx) => {
-                const dot = item.querySelector('.step-dot');
-                dot.classList.remove('active', 'done');
-                item.classList.remove('active', 'done');
-
-                if (idx < step) {
-                    dot.classList.add('done');
-                    item.classList.add('done');
-                } else if (idx === step) {
-                    dot.classList.add('active');
-                    item.classList.add('active');
-                }
-            });
-
-            // Update connector line
-            const totalSteps = items.length - 1;
-            const fillPct = Math.min(100, (step / totalSteps) * 100);
-            document.getElementById('step-line-fill').style.width = fillPct + '%';
-        }
-
-        // ─── Particle System ───
-        function spawnParticles() {
-            const container = document.getElementById('particles-container');
-            container.innerHTML = '';
-            for (let i = 0; i < 25; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                p.style.left = Math.random() * 100 + '%';
-                p.style.animationDuration = (3 + Math.random() * 5) + 's';
-                p.style.animationDelay = Math.random() * 5 + 's';
-                p.style.width = (2 + Math.random() * 3) + 'px';
-                p.style.height = p.style.width;
-                const colors = ['var(--primary)', 'var(--secondary)', 'var(--green)', 'var(--accent)'];
-                p.style.background = colors[Math.floor(Math.random() * colors.length)];
-                container.appendChild(p);
-            }
-        }
-
-        // ─── Timer ───
-        function startTimer() {
-            startTime = Date.now();
-            timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                const mins = Math.floor(elapsed / 60);
-                const secs = elapsed % 60;
-                document.getElementById('timer-display').innerText = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
-        function stopTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-        }
-
-        // ─── Fun Fact Rotation ───
-        function rotateFunFact() {
-            let idx;
-            do { idx = Math.floor(Math.random() * funFacts.length); } while (idx === lastFactIdx);
-            lastFactIdx = idx;
-
-            const fact = funFacts[idx];
-            const container = document.getElementById('fun-fact');
-            container.style.animation = 'none';
-            container.offsetHeight; // trigger reflow
-            container.style.animation = 'factFadeIn 0.5s ease';
-            document.querySelector('.fun-fact-icon').innerText = fact.icon;
-            document.getElementById('fun-fact-text').innerText = fact.text;
-        }
-
-        function startFunFacts() {
-            rotateFunFact();
-            funFactInterval = setInterval(rotateFunFact, 8000);
-        }
-
-        function stopFunFacts() {
-            if (funFactInterval) clearInterval(funFactInterval);
-        }
-
-        // ─── Simulated progress for cloud mode ───
-        // Cloud mode only sends 10% → 20% → 100%, so we simulate intermediate steps
-        let simulatedProgress = 0;
-        let simulationInterval = null;
-
-        function startProgressSimulation() {
-            simulatedProgress = 5;
-            const stages = [
-                { at: 5, step: 0, name: "Uploading to Cloud GPU...", detail: "Sending video to processing server" },
-                { at: 12, step: 1, name: "Extracting Audio Track", detail: "Separating audio from video container" },
-                { at: 18, step: 2, name: "Separating Vocals (Demucs HQ)", detail: "5-pass analysis for crystal-clear vocals" },
-                { at: 30, step: 2, name: "AI Vocal Separation in Progress", detail: "Isolating voice from background music/noise" },
-                { at: 38, step: 3, name: "Transcribing Speech (Whisper large-v3)", detail: "Beam search 5 for maximum accuracy" },
-                { at: 48, step: 4, name: "Translating with Gemini AI", detail: "Full-scene contextual translation" },
-                { at: 55, step: 5, name: "Voice Cloning & Dubbing", detail: "XTTS generating best-of-2 for each segment" },
-                { at: 65, step: 5, name: "Applying Emotion & Prosody", detail: "Matching pitch, energy, and speaking style" },
-                { at: 75, step: 5, name: "Processing Remaining Segments", detail: "Post-processing: de-essing + compression + EQ" },
-                { at: 85, step: 6, name: "Mixing & Mastering Audio", detail: "Two-pass loudnorm + background ducking" },
-                { at: 92, step: 6, name: "Encoding Final Video", detail: "Combining processed voice with original video" },
-            ];
-
-            let stageIdx = 0;
-
-            simulationInterval = setInterval(() => {
-                if (simulatedProgress >= 95) {
-                    clearInterval(simulationInterval);
-                    return;
-                }
-
-                simulatedProgress += 0.3 + Math.random() * 0.4;
-
-                // Check if we've reached the next stage
-                while (stageIdx < stages.length && simulatedProgress >= stages[stageIdx].at) {
-                    const s = stages[stageIdx];
-                    updateStepUI(s.step);
-                    document.getElementById('status-step-name').innerText = s.name;
-                    document.getElementById('status-detail').innerText = s.detail;
-                    stageIdx++;
-                }
-
-                const pct = Math.min(95, Math.round(simulatedProgress));
-                document.getElementById('main-progress-fill').style.width = pct + '%';
-                document.getElementById('percent-display').innerText = pct + '%';
-            }, 1000);
-        }
-
-        function stopProgressSimulation() {
-            if (simulationInterval) clearInterval(simulationInterval);
-        }
-
-        // ─── File Selection ───
-        function handleFileSelect() {
-            const fileInput = document.getElementById("fileInput");
-            const fileNameDiv = document.getElementById("fileName");
-            const uploadBtn = document.getElementById("uploadBtn");
-            const compareBtn = document.getElementById("compareBtn");
-
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-                fileNameDiv.innerHTML = `<span style="color:var(--accent)">📎 ${file.name}</span> <span style="opacity:0.5">(${sizeMB} MB)</span>`;
-                uploadBtn.disabled = false;
-                compareBtn.disabled = false;
-            } else {
-                fileNameDiv.innerText = "No file selected";
-                uploadBtn.disabled = true;
-                compareBtn.disabled = true;
-            }
-        }
-
-        // ─── Engine Selection ───
-        function onEngineChange() {
-            const engine = document.getElementById('engineSelect').value;
-            document.getElementById('elevenlabs-keys').classList.add('hidden-keys');
-            document.getElementById('azure-keys').classList.add('hidden-keys');
-            if (engine === 'elevenlabs') document.getElementById('elevenlabs-keys').classList.remove('hidden-keys');
-            if (engine === 'azure') document.getElementById('azure-keys').classList.remove('hidden-keys');
-        }
-
-        // ─── UI State ───
-        function setUIState(state) {
-            const idle = document.getElementById("state-idle");
-            const process = document.getElementById("state-processing");
-
-            idle.classList.add("hidden");
-            process.classList.add("hidden");
-
-            if (state === 'idle') {
-                idle.classList.remove("hidden");
-            } else if (state === 'processing') {
-                process.classList.remove("hidden");
-                spawnParticles();
-                startFunFacts();
-            } else if (state === 'playing') {
-                stopFunFacts();
-            }
-        }
-
-        // ─── Upload ───
-        async function uploadVideo() {
-            const fileInput = document.getElementById("fileInput");
-            const langSelect = document.getElementById("langSelect");
-
-            if (!fileInput.files[0]) return;
-            if (isUploading) return;
-
-            isUploading = true;
-            isPlayerInit = false;
-            currentStep = -1;
-            if (activePollInterval) { clearInterval(activePollInterval); activePollInterval = null; }
-
-            // UI Updates
-            setUIState('processing');
-            document.getElementById("uploadBtn").disabled = true;
-            document.getElementById('main-progress-fill').style.width = '0%';
-            document.getElementById('percent-display').innerText = '0%';
-            document.getElementById('status-step-name').innerText = 'Uploading your video...';
-            document.getElementById('status-detail').innerText = 'Connecting to AI server';
-            updateStepUI(0);
-            startTimer();
-            startProgressSimulation();
-
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-            formData.append("lang", langSelect.value);
-
-            const geminiKey = document.getElementById("geminiKey").value;
-            if (geminiKey) formData.append("gemini_api_key", geminiKey);
-
-            // Voice engine params
-            const engine = document.getElementById('engineSelect').value;
-            formData.append("voice_engine", engine);
-            if (engine === 'elevenlabs') {
-                formData.append("elevenlabs_key", document.getElementById('elevenlabsKey').value);
-            } else if (engine === 'azure') {
-                formData.append("azure_key", document.getElementById('azureKey').value);
-                formData.append("azure_region", document.getElementById('azureRegion').value || 'eastus');
-            }
-
-            try {
-                const res = await fetch("http://localhost:5000/api/process", {
-                    method: "POST",
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    pollStatus(data.jobId);
-                } else {
-                    alert("Upload failed: " + data.message);
-                    resetUI();
-                }
-            } catch (e) {
-                alert("Error: " + e.message);
-                resetUI();
-            }
-        }
-
-        // ─── Poll Status ───
-        async function pollStatus(jobId) {
-            activePollInterval = setInterval(async () => {
-                try {
-                    const res = await fetch(`http://localhost:5000/api/status/${jobId}`);
-                    const data = await res.json();
-
-                    if (data.success) {
-                        const pct = Math.round(data.progress);
-
-                        if (pct > simulatedProgress) {
-                            simulatedProgress = pct;
-                            document.getElementById('main-progress-fill').style.width = pct + '%';
-                            document.getElementById('percent-display').innerText = pct + '%';
-                        }
-
-                        if (data.stage) {
-                            const detectedStep = detectStep(data.stage);
-                            updateStepUI(detectedStep);
-                            document.getElementById('status-step-name').innerText = data.stage;
-                        }
-
-                        if (data.status === 'completed') {
-                            clearInterval(activePollInterval);
-                            activePollInterval = null;
-                            stopProgressSimulation();
-
-                            simulatedProgress = 100;
-                            document.getElementById('main-progress-fill').style.width = '100%';
-                            document.getElementById('percent-display').innerText = '100%';
-                            document.getElementById('status-step-name').innerText = '🎉 Dubbing Complete!';
-                            document.getElementById('status-detail').innerText = 'Loading your dubbed video...';
-                            updateStepUI(7);
-                            stopTimer();
-                            setTimeout(() => checkResult(jobId), 1500);
-
-                        } else if (data.status === 'error') {
-                            clearInterval(activePollInterval);
-                            activePollInterval = null;
-                            stopProgressSimulation();
-                            stopTimer();
-                            alert('Error: ' + data.stage);
-                            resetUI();
-                        }
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            }, 1500);
-        }
-
-        // ─── Check Result ───
-        async function checkResult(jobId) {
-            try {
-                const res = await fetch(`http://localhost:5000/api/result/${jobId}`);
-                if (res.status === 200) {
-                    const data = await res.json();
-                    if (data.success && !isPlayerInit) {
-                        if (data.playlistUrl) {
-                            initPlayer(data.playlistUrl, 'application/x-mpegURL');
-                        } else if (data.finalVideo) {
-                            initPlayer(data.finalVideo, 'video/mp4');
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error('Result fetch error:', e);
-            }
-            isUploading = false;
-            document.getElementById('uploadBtn').disabled = false;
-        }
-
-        // ─── Init Player ───
-        function initPlayer(url, type) {
-            isPlayerInit = true;
-            setUIState('playing');
-
-            if (!player) player = videojs('my-video');
-
-            const fullUrl = `http://localhost:5000/${url}`;
-            console.log("Loading Video:", fullUrl, type);
-
-            player.src({ src: fullUrl, type: type });
-            player.play();
-        }
-
-        // ─── Reset ───
-        function resetUI() {
-            setUIState('idle');
-            document.getElementById("uploadBtn").disabled = false;
-            document.getElementById("compareBtn").disabled = false;
-            isPlayerInit = false;
-            isUploading = false;
-            currentStep = -1;
-            stopTimer();
-            stopFunFacts();
-            stopProgressSimulation();
-            if (activePollInterval) { clearInterval(activePollInterval); activePollInterval = null; }
-        }
-
-        // ─── Compare All Engines ───
-        let compareVideos = [];
-
-        async function compareAllEngines() {
-            const fileInput = document.getElementById("fileInput");
-            if (!fileInput.files[0]) return;
-            if (isUploading) return;
-
-            isUploading = true;
-
-            // Show processing state
-            setUIState('processing');
-            document.getElementById("uploadBtn").disabled = true;
-            document.getElementById("compareBtn").disabled = true;
-            document.getElementById('status-step-name').innerText = '🔬 Compare Mode: Dubbing with ALL engines...';
-            document.getElementById('status-detail').innerText = 'This will take longer as we dub with each engine separately';
-            startTimer();
-            startProgressSimulation();
-
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-            formData.append("lang", document.getElementById('langSelect').value);
-
-            const geminiKey = document.getElementById("geminiKey").value;
-            if (geminiKey) formData.append("gemini_api_key", geminiKey);
-
-            const elevenlabsKey = document.getElementById('elevenlabsKey').value;
-            if (elevenlabsKey) formData.append("elevenlabs_key", elevenlabsKey);
-
-            const azureKey = document.getElementById('azureKey').value;
-            if (azureKey) formData.append("azure_key", azureKey);
-            const azureRegion = document.getElementById('azureRegion').value;
-            if (azureRegion) formData.append("azure_region", azureRegion);
-
-            try {
-                const res = await fetch("http://localhost:5000/api/compare", {
-                    method: "POST",
-                    body: formData
-                });
-                const data = await res.json();
-
-                stopProgressSimulation();
-                stopTimer();
-
-                if (data.success) {
-                    // 100% done
-                    simulatedProgress = 100;
-                    document.getElementById('main-progress-fill').style.width = '100%';
-                    document.getElementById('percent-display').innerText = '100%';
-                    document.getElementById('status-step-name').innerText = '🎉 Comparison Complete!';
-                    updateStepUI(7);
-
-                    setTimeout(() => {
-                        showCompareResults(data);
-                        resetUI();
-                    }, 1500);
-                } else {
-                    alert("Compare failed: " + (data.error || data.message));
-                    resetUI();
-                }
-            } catch (e) {
-                alert("Compare error: " + e.message);
-                stopProgressSimulation();
-                stopTimer();
-                resetUI();
-            }
-        }
-
-        function showCompareResults(data) {
-            const grid = document.getElementById('compare-grid');
-            grid.innerHTML = '';
-            compareVideos = [];
-
-            const engineInfo = {
-                edge: { label: 'Edge TTS', icon: '🟢', badge: 'badge-edge', desc: 'Free, Unlimited' },
-                xtts: { label: 'XTTS Clone', icon: '🟡', badge: 'badge-xtts', desc: 'Voice Cloning' },
-                elevenlabs: { label: 'ElevenLabs', icon: '🟣', badge: 'badge-elevenlabs', desc: 'Premium Quality' },
-                azure: { label: 'Azure Neural', icon: '🔵', badge: 'badge-azure', desc: 'Emotion Styles' }
-            };
-
-            const cloudUrl = 'http://localhost:5000'; // Backend proxy
-
-            for (const [engine, filename] of Object.entries(data.engines)) {
-                const info = engineInfo[engine] || { label: engine, icon: '⚪', badge: '', desc: '' };
-                const videoUrl = `${cloudUrl}/api/compare-video/${filename}`;
-
-                const panel = document.createElement('div');
-                panel.className = 'compare-panel';
-                panel.innerHTML = `
-                    <div class="compare-panel-header">
-                        <span style="font-size:1.2rem">${info.icon}</span>
-                        <span style="font-weight:600">${info.label}</span>
-                        <span class="engine-badge ${info.badge}">${info.desc}</span>
-                    </div>
-                    <video controls style="width:100%;display:block" data-engine="${engine}">
-                        <source src="${videoUrl}" type="video/mp4">
-                    </video>
-                `;
-                grid.appendChild(panel);
-
-                const vid = panel.querySelector('video');
-                compareVideos.push(vid);
-            }
-
-            // Show info
-            if (data.segments_count) {
-                const infoDiv = document.createElement('div');
-                infoDiv.style.cssText = 'grid-column: 1/-1; text-align:center; color:var(--text-muted); padding:10px; font-size:0.85rem;';
-                infoDiv.innerHTML = `📊 ${data.segments_count} segments · ${Math.round(data.duration)}s duration · ${Object.keys(data.engines).length} engines compared`;
-                grid.appendChild(infoDiv);
-            }
-
-            document.getElementById('compare-overlay').classList.add('visible');
-        }
-
-        function syncPlayAll() {
-            compareVideos.forEach(v => { v.currentTime = 0; v.play(); });
-        }
-        function syncPauseAll() {
-            compareVideos.forEach(v => v.pause());
-        }
-        function syncRestartAll() {
-            compareVideos.forEach(v => { v.pause(); v.currentTime = 0; });
-        }
-        function closeCompare() {
-            compareVideos.forEach(v => { v.pause(); v.src = ''; });
-            compareVideos = [];
-            document.getElementById('compare-overlay').classList.remove('visible');
-        }
-    </script>
-
+    <!-- STEP 2 — Configure -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot"></span>Step 2 — Configure</div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Target Language</label>
+          <select id="langSel">
+            <option value="hi">🇮🇳 Hindi</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="es">🇪🇸 Spanish</option>
+            <option value="fr">🇫🇷 French</option>
+            <option value="de">🇩🇪 German</option>
+            <option value="it">🇮🇹 Italian</option>
+            <option value="pt">🇧🇷 Portuguese</option>
+            <option value="zh">🇨🇳 Chinese</option>
+            <option value="ja">🇯🇵 Japanese</option>
+            <option value="ko">🇰🇷 Korean</option>
+            <option value="ru">🇷🇺 Russian</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Processing Mode</label>
+          <div class="toggle-row" onclick="togglePrev()">
+            <div class="toggle-info">
+              <div class="toggle-title">Preview mode</div>
+              <div class="toggle-sub">Process first 30 seconds only</div>
+            </div>
+            <div class="sw" id="prevSw"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice Engine — Edge TTS & XTTS v2 only -->
+      <div style="margin-top:20px">
+        <div class="card-title" style="margin-bottom:12px"><span class="dot"></span>Voice Engine</div>
+        <div class="engine-tabs">
+          <button class="eng-tab" data-eng="edge" onclick="pickEng(this)">
+            <div class="eng-tab-icon">🔊</div>
+            <div class="eng-tab-body">
+              <div class="eng-tab-name">Edge TTS</div>
+              <span class="eng-badge">Free · Fast</span>
+            </div>
+          </button>
+          <button class="eng-tab active" data-eng="xtts" onclick="pickEng(this)">
+            <div class="eng-tab-icon">🎭</div>
+            <div class="eng-tab-body">
+              <div class="eng-tab-name">XTTS v2</div>
+              <span class="eng-badge">Voice Clone</span>
+            </div>
+          </button>
+        </div>
+
+        <div class="eng-detail hidden" id="ed-edge">
+          <div class="eng-detail-line" style="background:#0d9488"></div>
+          <div class="eng-detail-content">
+            <strong>Edge TTS</strong> — Microsoft neural voices with full SSML emotion styling. Zero cost, no API key required. Works immediately.
+          </div>
+        </div>
+        <div class="eng-detail" id="ed-xtts">
+          <div class="eng-detail-line" style="background:#1d4ed8"></div>
+          <div class="eng-detail-content">
+            <strong>XTTS v2</strong> — Clones the original speaker's voice into the target language. Runs locally, requires GPU. Powered by Coqui.
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Options -->
+      <div class="adv-toggle" onclick="toggleAdv()">
+        <span class="adv-arr" id="advArr">▶</span> Advanced options
+      </div>
+      <div class="adv-body" id="advBody">
+        <div style="padding-top:14px; display:flex; flex-direction:column; gap:12px">
+          <div class="form-grid">
+            <div class="field">
+              <label>Whisper Model</label>
+              <select>
+                <option>small</option>
+                <option>medium</option>
+                <option>large-v3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Speed Sync</label>
+              <select>
+                <option>atempo (fast)</option>
+                <option>rubberband</option>
+              </select>
+            </div>
+          </div>
+          <div class="toggle-row" style="cursor:default">
+            <div class="toggle-info">
+              <div class="toggle-title">Emotion-aware SSML</div>
+              <div class="toggle-sub">Adjust tone based on detected emotion</div>
+            </div>
+            <div class="sw on"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="prog-box" id="progW">
+        <div class="prog-top">
+          <span class="prog-stage" id="progS">Initializing…</span>
+          <span class="prog-pct" id="progP">0%</span>
+        </div>
+        <div class="bar-bg">
+          <div class="bar-fg" id="barFg"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="btn-row">
+        <button class="btn-primary" id="startBtn" onclick="startDubbingReal()" disabled>
+          🚀 Start Dubbing
+        </button>
+        <button class="btn-secondary" onclick="openCompare()">Compare</button>
+      </div>
+    </div>
+
+    <!-- DETECTED EMOTIONS -->
+    <div class="card emo-panel" id="emoPnl" style="margin-top:16px">
+      <div class="card-title"><span class="dot"></span>Detected Emotions</div>
+      <div class="emo-grid" id="emoG"></div>
+    </div>
+
+  </div><!-- end left col -->
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+
+    <!-- STATUS CARD -->
+    <div class="status-card">
+      <div class="status-header">
+        <span class="status-label" id="stLbl">Waiting</span>
+        <div class="sdot" id="sdot"></div>
+      </div>
+      <div class="big-pct" id="bigN">0<span>%</span></div>
+      <div class="stage-text" id="stageTxt">Upload a video to begin</div>
+      <div class="pipeline">
+        <div class="pip active" id="ps-extract"><span class="pip-icon">🎵</span>Extract audio<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-separate"><span class="pip-icon">🎛</span>Separate vocals<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-transcribe"><span class="pip-icon">📝</span>Transcribe<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-translate"><span class="pip-icon">🌐</span>Translate<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-tts"><span class="pip-icon">🔊</span>Generate speech<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-mix"><span class="pip-icon">🎚</span>Mix & master<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-encode"><span class="pip-icon">📦</span>Encode video<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+        <div class="pip" id="ps-done"><span class="pip-icon">✅</span>Complete<div class="pip-bar"><div class="pip-bar-fill"></div></div><div class="pip-check">✓</div></div>
+      </div>
+    </div>
+
+    <!-- ENGINE GUIDE -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot"></span>Engine Guide</div>
+      <div class="eng-guide">
+        <div class="eg-row">
+          <div class="eg-left">
+            <span class="eg-dot" style="background:#0d9488"></span>
+            <span class="eg-name" style="color:#0d9488">Edge TTS</span>
+          </div>
+          <span class="eg-badge" style="background:#f0fdf4;color:#15803d">Free · No key</span>
+        </div>
+        <div class="eg-row">
+          <div class="eg-left">
+            <span class="eg-dot" style="background:#1d4ed8"></span>
+            <span class="eg-name" style="color:#1d4ed8">XTTS v2</span>
+          </div>
+          <span class="eg-badge" style="background:#eff6ff;color:#1d4ed8">Voice clone · GPU</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end right col -->
+
+  <!-- RESULT PANEL -->
+  <div class="result-panel" id="resPnl">
+    <div class="result-banner">
+      <div>
+        <h2>Dubbing complete ✓</h2>
+        <p>Your video has been successfully dubbed</p>
+      </div>
+      <div class="ready-badge">
+        <div class="ready-dot"></div>Ready to download
+      </div>
+    </div>
+    <div class="result-grid">
+      <div>
+        <div class="video-box">
+          <div class="vid-placeholder" id="vidPh">
+            <div class="vid-play">▶</div>
+            <span>Preview will appear here</span>
+          </div>
+          <video id="resVid" controls style="display:none"></video>
+        </div>
+        <a class="dl-btn" id="dlBtn" href="#" download>↓ Download Dubbed Video</a>
+        <a class="dl-btn" id="dlSrtBtn" href="#" download style="display:none; margin-top:8px; background:var(--bg-card); color:var(--text); border:1px dashed var(--border);">📝 Download Subtitles (.srt)</a>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card">
+          <div class="stat-val" id="stLang">—</div>
+          <div class="stat-lbl">Language</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stEng">—</div>
+          <div class="stat-lbl">Engine Used</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stTime">—</div>
+          <div class="stat-lbl">Processing Time</div>
+        </div>
+        <button class="btn-primary" onclick="resetApp()" style="margin-top:4px">
+          ↺ Dub Another Video
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .main -->
+
+<!-- ENGINE COMPARE MODAL -->
+<div class="modal-bg" id="cmpBg" onclick="closeCmpBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Engine Comparison</div>
+      <button class="modal-close" onclick="closeCompare()">✕ Close</button>
+    </div>
+    <div class="eng-compare-grid">
+      <div class="ec-card">
+        <div class="ec-name" style="color:#0d9488">Edge TTS</div>
+        <div class="ec-score" style="color:#0d9488">Free</div>
+        <div class="ec-score-sub">no API key needed</div>
+        <div class="ec-bar"><div class="ec-bar-fill" style="width:78%;background:#0d9488"></div></div>
+        <div class="ec-desc">Microsoft Edge neural voices with full SSML emotion styling. Zero cost, works immediately. Great for most use cases.</div>
+      </div>
+      <div class="ec-card">
+        <div class="ec-name" style="color:#1d4ed8">XTTS v2</div>
+        <div class="ec-score" style="color:#1d4ed8">Clone</div>
+        <div class="ec-score-sub">voice matching</div>
+        <div class="ec-bar"><div class="ec-bar-fill" style="width:91%;background:#1d4ed8"></div></div>
+        <div class="ec-desc">Clones the original speaker's voice into the target language. Requires GPU. Powered by Coqui XTTS v2.</div>
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <button class="btn-primary" onclick="closeCompare()">Got it →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-zone" id="tz"></div>
+<script src="script.js"></script>
 </body>
-
 </html>

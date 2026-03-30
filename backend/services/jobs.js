@@ -19,24 +19,7 @@ export const createJob = (options = {}) => {
     return jobId;
 };
 
-export const startJob = async (jobId, videoPath, targetLang, geminiApiKey = null) => {
-    const job = jobs.get(jobId);
-    if (!job) return;
 
-    job.status = 'processing';
-    job.stage = 'Initializing...';
-
-    try {
-        await runPythonDubbing(jobId, videoPath, targetLang, geminiApiKey);
-        job.status = 'completed';
-        job.stage = 'Finished';
-    } catch (error) {
-        job.status = 'error';
-        job.stage = error.message;
-    } finally {
-        jobs.set(jobId, job);
-    }
-};
 
 export const updateJob = (jobId, updates) => {
     if (!jobs.has(jobId)) return;
